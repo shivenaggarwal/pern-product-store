@@ -1,8 +1,9 @@
 import express, { request } from "express";
-import helmet from "helmet";
+import helmet, { contentSecurityPolicy } from "helmet";
 import morgan from "morgan";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
 
 import productRoutes from "./routes/productRoutes.js";
 import { sql } from "./config/db.js";
@@ -12,10 +13,13 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const __dirname = path.resolve();
 
 app.use(express.json()); //parsing the incoming data
 app.use(cors());
-app.use(helmet()); //secure middleware we are using to protect our app by setting various http headers
+app.use(helmet(
+  {contentSecurityPolicy:false } //to load images which werent loading during prod
+)); //secure middleware we are using to protect our app by setting various http headers
 app.use(morgan("dev")); //log the req
 
 //applying arcjet rate limit to all routes
@@ -53,6 +57,16 @@ app.use(async (req,res,next) => {
 })
 
 app.use("/api/products", productRoutes);
+
+if(process.env.NODE_ENV==="production"){
+  //serve our react app
+  app.use(express.static(path.join(__dirname, "/frontend/dist")))
+
+  app.get("*", (req, res) => {
+    res.sendFile(path.resolve(__dirname, "frontend", "dist","index.html" )
+  })
+}
+
 
 async function initDB() {
   try {
